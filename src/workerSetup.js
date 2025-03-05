@@ -1,3 +1,5 @@
+// This file exports the worker code as a string that can be used with a Blob
+const workerCode = `
 self.onmessage = function(e) {
     try {
         const { csvText, companyName, keywordList, websiteUrl } = e.data;
@@ -39,7 +41,7 @@ const countAnchors = (csvText, companyName, websiteUrl, keywordList) => {
     
     try {
         // Split CSV into rows and handle potential errors
-        const rows = csvText.split('\n');
+        const rows = csvText.split('\\n');
         if (rows.length <= 1) {
             throw new Error('CSV file appears to be empty or invalid');
         }
@@ -177,10 +179,10 @@ const isUrl = (anchor, websiteUrl) => {
     
     // Also check for common URL patterns with the website domain
     const urlPatterns = [
-        `http://${websiteUrl}`,
-        `https://${websiteUrl}`,
-        `www.${websiteUrl}`,
-        `${websiteUrl}/`
+        \`http://\${websiteUrl}\`,
+        \`https://\${websiteUrl}\`,
+        \`www.\${websiteUrl}\`,
+        \`\${websiteUrl}/\`
     ];
     
     return urlPatterns.some(pattern => anchor.includes(pattern));
@@ -189,12 +191,12 @@ const isUrl = (anchor, websiteUrl) => {
 // Enhanced miscellaneous detection
 const isMiscellaneous = (anchor) => {
     // Check for non-ASCII characters
-    if (/[^\x00-\x7F]+/.test(anchor)) {
+    if (/[^\\x00-\\x7F]+/.test(anchor)) {
         return true;
     }
     
     // Check for excessive special characters (potential spam)
-    const specialCharRatio = (anchor.match(/[^\w\s]/g) || []).length / anchor.length;
+    const specialCharRatio = (anchor.match(/[^\\w\\s]/g) || []).length / anchor.length;
     if (specialCharRatio > 0.3) { // If more than 30% of characters are special
         return true;
     }
@@ -210,7 +212,7 @@ const isMiscellaneous = (anchor) => {
 // Memoized similarity calculation
 const getSimilarity = (phrase1, phrase2) => {
     // Create a cache key
-    const cacheKey = `${phrase1}|${phrase2}`;
+    const cacheKey = \`\${phrase1}|\${phrase2}\`;
     
     // Check if we've already calculated this
     if (similarityCache.has(cacheKey)) {
@@ -282,4 +284,7 @@ const similarityToPercentage = (phrase1, phrase2) => {
     
     // Return as number instead of string for better performance
     return Math.round(percentage);
-}; 
+};
+`;
+
+export default workerCode; 

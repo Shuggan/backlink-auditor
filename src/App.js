@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 import { FaFileUpload, FaPaperPlane, FaClipboard, FaArrowLeft, FaSpinner, FaExclamationTriangle } from 'react-icons/fa';
+import workerCode from './workerSetup';
 
 // Create worker in a way that handles errors
 const createWorker = () => {
   try {
-    return new Worker(new URL('./worker.js', window.location.href));
+    // Create a blob URL from the worker code
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    return new Worker(workerUrl);
   } catch (error) {
     console.error('Failed to create worker:', error);
     return null;
