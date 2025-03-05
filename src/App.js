@@ -1,8 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
-import { FaFileUpload, FaPaperPlane, FaClipboard, FaArrowLeft, FaSpinner } from 'react-icons/fa';
+import { FaFileUpload, FaPaperPlane, FaClipboard, FaArrowLeft, FaSpinner, FaExclamationTriangle } from 'react-icons/fa';
+
+// Create worker in a way that handles errors
+const createWorker = () => {
+  try {
+    return new Worker(new URL('./worker.js', window.location.href));
+  } catch (error) {
+    console.error('Failed to create worker:', error);
+    return null;
+  }
+};
 
 function App() {
+  // State management
   const [companyName, setCompanyName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [keywords, setKeywords] = useState('');
@@ -13,153 +24,165 @@ function App() {
   const [showResults, setShowResults] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const keywordList = keywords.split('\n').map(keyword => keyword.trim()).filter(Boolean);
+  const [error, setError] = useState(null);
+  const [worker, setWorker] = useState(null);
+  
+  // Memoize keyword list to avoid unnecessary recalculations
+  const keywordList = useMemo(() => 
+    keywords.split('\n').map(keyword => keyword.trim()).filter(Boolean),
+    [keywords]
+  );
   
   const fileInputRef = useRef(null);
+  const maxFileSize = 50 * 1024 * 1024; // 50MB in bytes
 
-  const handleFileChange = (event) => {
+  // Initialize worker
+  useEffect(() => {
+    const newWorker = createWorker();
+    setWorker(newWorker);
+    
+    return () => {
+      // Clean up worker on component unmount
+      if (newWorker) {
+        newWorker.terminate();
+      }
+    };
+  }, []);
+
+  // Set up worker message handler
+  useEffect(() => {
+    if (!worker) return;
+    
+    const handleWorkerMessage = (e) => {
+      const response = e.data;
+      
+      if (response.success) {
+        setResults(response.results);
+        setShowResults(true);
+      } else {
+        setError(response.error || 'An error occurred during processing');
+      }
+      
+      setIsLoading(false);
+    };
+    
+    worker.onmessage = handleWorkerMessage;
+    
+    worker.onerror = (error) => {
+      console.error('Worker error:', error);
+      setError('Worker error: ' + (error.message || 'Unknown error'));
+      setIsLoading(false);
+    };
+  }, [worker]);
+
+  const handleFileChange = useCallback((event) => {
     const file = event.target.files[0];
-    if (file) {
-        // Check if the file is different from the current one
-        if (file.name !== fileName) {
-            setCsvFile(file);
-            setFileName(file.name);
-            setIsFileUploaded(true);
-        }
+    
+    if (!file) return;
+    
+    // Reset error state
+    setError(null);
+    
+    // Validate file size
+    if (file.size > maxFileSize) {
+      setError(`File size exceeds the maximum limit of 50MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`);
+      return;
     }
-  };
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Please upload a CSV file.');
+      return;
+    }
+    
+    // Check if the file is different from the current one
+    if (file.name !== fileName) {
+      setCsvFile(file);
+      setFileName(file.name);
+      setIsFileUploaded(true);
+    }
+  }, [fileName, maxFileSize]);
 
-  const resetFileInput = () => {
+  const resetFileInput = useCallback(() => {
     setCsvFile(null);
     setFileName('');
     setIsFileUploaded(false);
-  };
+    
+    // Reset the file input element
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, []);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = useCallback((event) => {
     event.preventDefault();
-    if (!csvFile) {
-      alert("Please upload a CSV file.");
+    
+    // Reset error state
+    setError(null);
+    
+    // Validate inputs
+    if (!companyName.trim()) {
+      setError('Please enter a company name.');
       return;
     }
-
+    
+    if (!websiteUrl.trim()) {
+      setError('Please enter a website URL.');
+      return;
+    }
+    
+    if (!csvFile) {
+      setError('Please upload a CSV file.');
+      return;
+    }
+    
+    if (!worker) {
+      setError('Web worker is not available. Please try refreshing the page.');
+      return;
+    }
+    
     setIsLoading(true);
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      setTimeout(() => {
-        const results = countAnchors(text);
-        setResults(results);
-        setShowResults(true);
-        setIsLoading(false);
-      }, 0);
-    };
-    reader.readAsText(csvFile);
-  };
-
-  const calculateLevenshteinDistance = (phrase1, phrase2) => {
-    var distance = [];
-    for (var i = 0; i <= phrase1.length; i++) {
-      distance[i] = [];
-      distance[i][0] = i;
-    }
-    for (var j = 0; j <= phrase2.length; j++) {
-      distance[0][j] = j;
-    }
-    for (var i = 1; i <= phrase1.length; i++) {
-      for (var j = 1; j <= phrase2.length; j++) {
-        var cost = (phrase1.charAt(i - 1) === phrase2.charAt(j - 1)) ? 0 : 1;
-        distance[i][j] = Math.min(
-          distance[i - 1][j] + 1,         // Deletion
-          distance[i][j - 1] + 1,         // Insertion
-          distance[i - 1][j - 1] + cost   // Substitution
-        );
-      }
-    }
-    return distance[phrase1.length][phrase2.length];
-  };
-
-  const similarityToPercentage = (phrase1, phrase2) => {
-    var maxLength = Math.max(phrase1.length, phrase2.length);
-    var distance = calculateLevenshteinDistance(phrase1, phrase2);
-    var percentage = ((maxLength - distance) / maxLength) * 100;
-    return percentage.toFixed(2);
-  };
-
-  const countAnchors = (csvText) => {
-    const rows = csvText.split('\n').slice(1); // Skip header row
-    let totalAnchors = 0;
-    let brandedAnchors = 0;
-    let nakedUrlAnchors = 0;
-    let exactMatch = 0;
-    let partialMatch = 0;
-    let generic = 0;
-    let miscellaneous = 0;
-    let emptyAnchors = 0;
-
-    rows.forEach(row => {
-      const columns = row.split(',');
-      const anchor = columns[3]?.trim(); // Column D
-      totalAnchors += 1;
-      if (anchor) {
-        if (anchor.toLowerCase().includes(companyName.toLowerCase()) && !isUrl(anchor)) {
-          brandedAnchors += 1;
-        } else if (isUrl(anchor)) {
-          nakedUrlAnchors += 1;
-        } else if (isMiscellaneous(anchor)) {
-          miscellaneous += 1;
-        } else {
-          // Optimize exact match check
-          let isExactMatch = false;
-          for (const keyword of keywordList) {
-            const similarity = similarityToPercentage(anchor.toLowerCase(), keyword.toLowerCase());
-            if (similarity >= 90) {
-              exactMatch += 1;
-              isExactMatch = true;
-              break; // Early exit on first match
-            }
-          }
-          if (!isExactMatch) {
-            // Optimize partial match check
-            for (const keyword of keywordList) {
-              const similarity = similarityToPercentage(anchor.toLowerCase(), keyword.toLowerCase());
-              if (similarity >= 60) {
-                partialMatch += 1;
-                break; // Early exit on first match
-              }
-            }
-            if (!isExactMatch) {
-              generic += 1;
-            }
-          }
+    
+    try {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          
+          // Send data to the worker
+          worker.postMessage({ 
+            csvText: text, 
+            companyName: companyName.trim(),
+            websiteUrl: websiteUrl.trim(),
+            keywordList 
+          });
+        } catch (error) {
+          console.error('Error processing file:', error);
+          setError('Error processing file: ' + (error.message || 'Unknown error'));
+          setIsLoading(false);
         }
-      } else {
-        emptyAnchors += 1;
-      }
-    });
+      };
+      
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+        setError('Error reading file: ' + (error.message || 'Unknown error'));
+        setIsLoading(false);
+      };
+      
+      reader.readAsText(csvFile);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setError('Error submitting form: ' + (error.message || 'Unknown error'));
+      setIsLoading(false);
+    }
+  }, [companyName, websiteUrl, csvFile, worker, keywordList]);
 
-    return {
-      totalAnchors,
-      brandedAnchors,
-      nakedUrlAnchors,
-      exactMatch,
-      partialMatch,
-      generic,
-      miscellaneous,
-      emptyAnchors,
-    };
-  };
-
-  const isUrl = (anchor) => {
-    return anchor.includes(websiteUrl);
-  };
-
-  const isMiscellaneous = (anchor) => {
-    return /[^\x00-\x7F]+/.test(anchor);
-  };
-
-  const handleCopyResults = () => {
-    const resultsText = `
+  const handleCopyResults = useCallback(() => {
+    if (!results) return;
+    
+    try {
+      const resultsText = `
 ${results.brandedAnchors}
 ${results.nakedUrlAnchors}
 ${results.exactMatch}
@@ -168,33 +191,68 @@ ${results.emptyAnchors}
 
 ${results.generic}
 ${results.miscellaneous}
-    `;
-    navigator.clipboard.writeText(resultsText.trim()).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }).catch(err => {
-        console.error("Failed to copy: ", err);
-    });
-  };
+      `;
+      
+      navigator.clipboard.writeText(resultsText.trim())
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(err => {
+          console.error("Failed to copy: ", err);
+          setError('Failed to copy results to clipboard.');
+        });
+    } catch (error) {
+      console.error('Error copying results:', error);
+      setError('Error copying results: ' + (error.message || 'Unknown error'));
+    }
+  }, [results]);
 
-  const handleGoBack = () => {
+  const handleGoBack = useCallback(() => {
     setShowResults(false);
     setResults(null);
-  };
+    setError(null);
+  }, []);
 
-  const normalizeUrl = (url) => {
-    // Remove protocol (http, https)
-    url = url.replace(/(^\w+:|^)\/\//, '');
-    // Remove www
-    url = url.replace(/^www\./, '');
-    // Remove any slugs or paths
-    url = url.split('/')[0];
-    return url;
-  };
+  const normalizeUrl = useCallback((url) => {
+    if (!url) return '';
+    
+    try {
+      // Remove protocol (http, https)
+      let normalized = url.replace(/(^\w+:|^)\/\//, '');
+      // Remove www
+      normalized = normalized.replace(/^www\./, '');
+      // Remove any slugs or paths
+      normalized = normalized.split('/')[0];
+      return normalized;
+    } catch (error) {
+      console.error('Error normalizing URL:', error);
+      return url; // Return original URL if there's an error
+    }
+  }, []);
 
-  const handleWebsiteUrlChange = (e) => {
+  const handleWebsiteUrlChange = useCallback((e) => {
     const normalizedUrl = normalizeUrl(e.target.value);
     setWebsiteUrl(normalizedUrl);
+  }, [normalizeUrl]);
+
+  // Error display component
+  const ErrorMessage = () => {
+    if (!error) return null;
+    
+    return (
+      <div className="error-message">
+        <FaExclamationTriangle className="error-icon" />
+        <p>{error}</p>
+        <button 
+          className="error-dismiss" 
+          onClick={() => setError(null)}
+          aria-label="Dismiss error"
+        >
+          ×
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -239,6 +297,9 @@ ${results.miscellaneous}
           </ol>
         </div>
         <div className="right-container">
+          {/* Error message display */}
+          <ErrorMessage />
+          
           {showResults ? (
             <div>
               <h2>Results</h2>
@@ -285,7 +346,7 @@ ${results.miscellaneous}
                 </tbody>
               </table>
               <div className="results-buttons">
-                <button onClick={handleCopyResults}>
+                <button onClick={handleCopyResults} disabled={!results}>
                   {copied ? 'Copied!' : <><FaClipboard style={{ marginRight: '5px' }} /> Copy Results</>}
                 </button>
                 <button onClick={handleGoBack}>
@@ -304,6 +365,8 @@ ${results.miscellaneous}
                     placeholder="Company name"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
+                    disabled={isLoading}
+                    required
                   />
                 </label>
               </div>
@@ -316,6 +379,8 @@ ${results.miscellaneous}
                     placeholder="Paste the homepage URL"
                     value={websiteUrl}
                     onChange={handleWebsiteUrlChange}
+                    disabled={isLoading}
+                    required
                   />
                 </label>
               </div>
@@ -328,6 +393,7 @@ ${results.miscellaneous}
                     placeholder="Keyword 1&#10;Keyword 2&#10;Keyword 3&#10;..."
                     value={keywords}
                     onChange={(e) => setKeywords(e.target.value)}
+                    disabled={isLoading}
                   />
                 </label>
               </div>
@@ -337,8 +403,10 @@ ${results.miscellaneous}
                   <div 
                     className={`upload-container ${isFileUploaded ? 'active' : ''}`} 
                     onClick={() => {
-                      resetFileInput();
-                      fileInputRef.current.click();
+                      if (!isLoading) {
+                        resetFileInput();
+                        fileInputRef.current.click();
+                      }
                     }}
                   >
                     <input 
@@ -348,7 +416,7 @@ ${results.miscellaneous}
                       onChange={handleFileChange} 
                       style={{ display: 'none' }} 
                       multiple={false}
-                      disabled={isFileUploaded}
+                      disabled={isLoading}
                     />
                     <FaFileUpload className={`upload-icon ${isFileUploaded ? 'active' : ''}`} />
                     <p className="upload-text">
@@ -361,7 +429,7 @@ ${results.miscellaneous}
               <button type="submit" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <FaSpinner className="spinner" style={{ marginRight: '5px', animation: 'spin 1s linear infinite' }} />
+                    <FaSpinner className="spinner" style={{ marginRight: '5px' }} />
                     Calculating...
                   </>
                 ) : (
