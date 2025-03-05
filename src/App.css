@@ -1,0 +1,307 @@
+.App {
+  text-align: center;
+  height: 100vh; /* Full viewport height */
+  display: flex; /* Flexbox for layout */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  position: relative; /* Position relative for overlay */
+  overflow: hidden; /* Prevent overflow */
+  background: linear-gradient(45deg, #ff6b6b, #f7d9a0, #6bcb77, #4d96ff, #ff6b6b);
+  background-size: 400% 400%;
+  animation: gradient 10s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+form {
+  /* Set form width to 100% of the container */
+  width: 100%;
+  display: flex; /* Flexbox for form layout */
+  flex-direction: column; /* Stack form elements vertically */
+  margin: 0; /* Remove margin to fit within the container */
+  padding: 2%; /* Add padding for spacing, use percentage for responsiveness */
+  font-family: inherit; /* Ensure form elements inherit the font */
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px; /* Reduced space between label and input */
+  font-weight: bold; /* Bold labels */
+  color: #333; /* Darker color for better readability */
+  text-align: left; /* Align text to the left */
+  font-family: inherit; /* Ensure label inherits the font */
+}
+
+input[type="text"],
+textarea,
+input[type="file"],
+button {
+  font-family: inherit; /* Ensure inputs and buttons inherit the font */
+}
+
+input[type="text"],
+textarea,
+input[type="file"] {
+  width: 100%; /* Full width inputs */
+  padding: 2%; /* Increased padding for a more spacious feel, use percentage */
+  margin-top: 5px; /* Space between label and input */
+  border: 1px solid #d1d1d1; /* Light border */
+  border-radius: 8px; /* Rounded corners for inputs */
+  font-size: 16px; /* Font size for inputs, use rem for scalability */
+  transition: border-color 0.3s, box-shadow 0.3s; /* Smooth transition for focus */
+  background-color: white; /* Set input background color to white */
+  box-sizing: border-box; /* Include padding and border in element's total width and height */
+}
+
+/* Add this new rule to maintain white background when input is filled */
+input[type="text"]:not(:placeholder-shown),
+textarea:not(:placeholder-shown) {
+  background-color: white; /* Keep background white when filled */
+}
+
+textarea {
+  resize: none;
+  min-height: 10vh; /* Minimum height for the textarea, use vh for responsiveness */
+}
+
+input[type="text"]:focus,
+textarea:focus {
+  border-color: #007aff; /* Blue border on focus */
+  outline: none; /* Remove default outline */
+  box-shadow: 0 0 5px rgba(0, 122, 255, 0.5); /* Subtle shadow on focus */
+}
+
+button {
+  background-color: black; /* Set button color to black */
+  color: white; /* White text */
+  border: none; /* No border */
+  border-radius: 20px; /* Set corners to 20px */
+  padding: 15px 15px; /* Adjusted padding for button */
+  font-size: 18px; /* Font size for button */
+  font-weight: 900; /* Set font weight to 900 */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s, transform 0.2s; /* Smooth transition for hover */
+}
+
+button:hover {
+  background-color: #333; /* Dark grey on hover */
+  transform: translateY(-2px); /* Lift effect on hover */
+}
+
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  z-index: 1000; /* Ensure it appears above other content */
+}
+
+.popup button {
+  margin-top: 10px;
+}
+
+/* Semi-transparent overlay */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.5); /* White with 50% opacity */
+  z-index: 1; /* Ensure it is below the content */
+}
+
+.container {
+  display: flex; /* Flexbox for left and right containers */
+  width: 100%; /* Full width of the viewport */
+  max-width: 1200px; /* Maximum width for larger screens */
+  height: auto; /* Allow height to adjust based on content */
+  position: relative; /* Position relative for child elements */
+  z-index: 2; /* Ensure it is above the overlay */
+  margin: 0 auto; /* Center the container */
+  flex-wrap: wrap; /* Allow wrapping of child elements */
+  padding: 20px; /* Add padding around the container */
+  justify-content: space-between; /* Align left and right containers to the sides */
+}
+
+.left-container {
+  flex: 1; /* Take up 50% of the width */
+  margin-right: 50px;
+  background-color: transparent; /* Empty for now */
+  min-width: 300px; /* Minimum width for responsiveness */
+  padding: 20px; /* Add padding for spacing */
+  text-align: left; /* Align text to the left */
+}
+
+.right-container {
+  flex: 1; /* Take up remaining width */
+  margin-left: 20px; /* Increased left margin for more gap */
+  margin-right: 10px; /* Maintain right margin for spacing */
+  background-color: rgba(255, 255, 255, 0.7); /* Set background color with 70% opacity */
+  border-radius: 20px; /* Rounded corners */
+  padding: 50px; /* Ensure padding is consistent */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Softer shadow for depth */
+  transition: box-shadow 0.3s; /* Smooth transition for hover effect */
+  display: flex; /* Use flexbox for the right container */
+  flex-direction: column; /* Stack children vertically */
+  justify-content: center; /* Center children vertically */
+  align-items: center; /* Center children horizontally */
+}
+
+.right-container:hover {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2); /* Deeper shadow on hover */
+}
+
+.right-container h2 {
+  margin-bottom: 20px; /* Space below the results heading */
+}
+
+.right-container button {
+  margin-top: 10px; /* Space between buttons */
+}
+
+.upload-container {
+  border: 2px dashed #d1d1d1; /* Default border color */
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background-color: white;
+}
+
+.upload-container.active {
+  border-color: black; /* Border color when a file is uploaded */
+}
+
+.upload-icon {
+  font-size: 24px;
+  color: #d1d1d1; /* Default icon color */
+}
+
+.upload-icon.active {
+  color: #4BB543; /* Icon color when a file is uploaded */
+}
+
+.upload-text {
+  font-size: 12px;
+  color: #888;
+  margin: 5px 0 0 0;
+}
+
+.upload-text-small {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif; /* Use Poppins font */
+}
+
+h2 {
+  margin-bottom: 10px; /* Space below the heading */
+}
+
+ol {
+  margin: 0; /* Remove default margin */
+  padding-left: 20px; /* Indent ordered list */
+}
+
+ul {
+  margin: 0; /* Remove default margin */
+  padding-left: 20px; /* Indent unordered list */
+}
+
+.step-item {
+  margin-top: 20px; /* Add spacing above each main list item */
+}
+
+.step-item strong {
+  font-weight: bold; /* Make the numbered steps bold */
+}
+
+.results-buttons {
+  display: flex; /* Use flexbox for layout */
+  gap: 10px; /* Space between buttons */
+}
+
+.results-buttons button {
+  flex: 1; /* Make buttons evenly sized */
+  min-width: 250px; /* Set a minimum width for the buttons */
+  background-color: black; /* Set button color to black */
+  color: white; /* White text */
+  border: none; /* No border */
+  border-radius: 20px; /* Set corners to 20px */
+  padding: 15px; /* Adjusted padding for button */
+  font-size: 16px; /* Font size for button */
+  font-weight: 900; /* Set font weight to 900 */
+  cursor: pointer; /* Pointer cursor on hover */
+  transition: background-color 0.3s, transform 0.2s; /* Smooth transition for hover */
+}
+
+.results-buttons button:hover {
+  background-color: #333; /* Dark grey on hover */
+  transform: translateY(-2px); /* Lift effect on hover */
+}
+
+/* Add this to your existing CSS */
+table {
+  border-collapse: collapse;
+  width: 500px; /* Set the width of the table */
+  margin: 0 auto; /* Center the table */
+}
+
+th, td {
+  border: 1px solid #d1d1d1; /* Faint border */
+  padding: 8px; /* Padding for cells */
+  text-align: left; /* Align text to the left */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner {
+  animation: spin 1s linear infinite; /* Add this class for the spinner animation */
+}
